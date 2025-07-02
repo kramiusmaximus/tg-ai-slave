@@ -11,7 +11,7 @@
     <strong>English (🇺🇸)</strong> | <a href="README_RU.md">Русский (🇷🇺)</a>
 </h4>
 
-This project allows to launch your Telegram bot in a few minutes to communicate with free or paid AI models via [OpenRouter](https://openrouter.ai).
+This project allows to launch your Telegram bot in a few minutes to communicate with free and paid AI models via [OpenRouter](https://openrouter.ai) or a local LLM, by example, via [LM Studio](https://lmstudio.ai).
 
 > [!NOTE]
 > This repository is a fork of the [openrouter-gpt-telegram-bot](https://github.com/deinfinite/openrouter-gpt-telegram-bot) project, which adds `Markdown` formatting to bot responses and optimizes the process of launching in a container.
