@@ -1,10 +1,10 @@
 services:
-  openrouter-gpt-telegram-bot:
+  OpenRouter-Bot:
+    container_name: OpenRouter-Bot
+    image: lifailon/openrouter-bot:latest
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: dockerfile
     volumes:
-      - .:/app
+      - .env:/openrouter-bot/.env
     restart: unless-stopped
-    env_file:
-      - .env
