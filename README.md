@@ -1,64 +1,78 @@
-# Openrouter-GPT-Telegram-Bot
-This repository contains a Telegram bot that integrates with Openrouter.AI API to provide interactive, AI-driven responses.
+<h1 align="center">
+    <img src="img/logo.png" width="220" />
+    <div>
+    OpenRouter
+    <br>
+    Bot
+    </div>
+</h1>
 
-## Installation
+This project allows you to quickly and free launch your Telegram bot to communicate with cloud AI via [OpenRouter](https://openrouter.ai) for you and your family.
 
-### Prerequisites
-Before you begin, ensure you have the following:
-- Git installed on your machine.
-- Docker installed if you prefer to use Docker for running the bot.
-- Go installed if you choose to run the bot directly with Go.
+> [!NOTE]
+> This repository is a fork of the [openrouter-gpt-telegram-bot](https://github.com/deinfinite/openrouter-gpt-telegram-bot) project, which adds `Markdown` formatting to bot responses and optimizes the process of launching in a container.
 
-### Steps
+<details>
+    <summary>Example Markdown formatting</summary>
+    <img src="./img/example.png">
+</details>
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/defriend/openrouter-gpt-telegram-bot.git
-   cd openrouter-gpt-telegram-bot
-   ```
+## Preparation
 
-2. **Configure environment settings:**
-    - Rename `example.env` to `.env`.
-    - Populate the `.env` file with your API keys and Telegram bot token:
-        - Obtain API keys from [Openrouter API](https://openrouter.ai/keys).
-        - Get your Telegram API Token from [@BotFather](https://t.me/BotFather).
-    - Set `ADMIN_USER_IDS` to specify Telegram user IDs of admins if you want to enable admin commands.
-    - Set `ALLOWED_TELEGRAM_USER_IDS` to specify which Telegram user IDs are allowed to interact with the bot or leave blank to allow all users (Don't forget to set up Guest Budget).
+- Register with [OpenRouter](https://openrouter.ai) and get an [API key](https://openrouter.ai/settings/keys).
 
-3. **Set up user permissions and budgets in the `.env` file:**
-    - Define budgets for users and guests using `USER_BUDGETS` and `GUEST_BUDGET` both variables can be set to 0.
+- Create your Telegram bot using [@BotFather](https://telegram.me/BotFather) and get its API token.
 
-4. **Choose an AI model:**
-    - Set the `MODEL` variable in the `.env` file to select the AI model you wish to use, such as `meta-llama/llama-3-70b-instruct`.
+- Get your telegram id using [@getmyid_bot](https://t.me/getmyid_bot).
 
-### Running the Bot
+> [!TIP]
+> When you launch the bot, you will be able to see the IDs of other users in the log, to whom you can also grant access to the bot in the future.
 
-#### Using Go
-If you have Go installed, you can run the bot directly:
+## Launch
+
+- Create a working directory:
+
 ```bash
-go run main.go
+mkdir openrouter-bot
+cd openrouter-bot
 ```
 
-#### Using Docker Compose
-To build and run the bot using Docker Compose, execute:
+- Create `.env` file and fill in the basic variables:
+
 ```bash
-docker compose up
+# OpenRouter api key
+API_KEY=
+# Free modeles: https://openrouter.ai/models?max_price=0
+MODEL=deepseek/deepseek-r1:free
+# Telegram api key
+TELEGRAM_BOT_TOKEN=
+# Your Telegram id
+ADMIN_IDS=
+# List of users to access the bot, separated by commas
+ALLOWED_USER_IDS=
+# Disable guest access
+GUEST_BUDGET=0
+# Language used for bot responses (supported: EN/RU)
+LANG=EN
 ```
 
-## Features
-- **Customizable AI Models:** Choose from a variety of AI models to suit your specific needs.
-- **User Management:** Manages user interactions and tracks usage with a detailed usage tracker that supports budget management for different user roles including admins, registered users, and guests.
-- **Docker Support:** Offers Docker compatibility for easy deployment and scalability.
--  **Command Support:** Includes several commands for user interaction:
-- - `/help`: Displays available commands.
-- - `/reset`: Clears the user history and can reset the system prompt to a default or specified state.
-- - `/stats`: Provides current usage statistics and message count.
-- - `/stop`: Terminates any active AI response streams.
+The list of all parameters is listed in the `.env.example` file.
 
+- Download the image from [Docker Hub](https://hub.docker.com/r/lifailon/openrouter-bot) and run the container:
 
-## Acknowledgments
-- This project was inspired by and has used resources from:
-    - [n3d1117/chatgpt-telegram-bot](https://github.com/n3d1117/chatgpt-telegram-bot)
-    - [Openrouter.AI API Documentation](https://openrouter.ai)
+```bash
+docker run -d --name OpenRouter-Bot \
+    -v ./.env:/openrouter-bot/.env \
+    --restart unless-stopped \
+    lifailon/openrouter-bot:latest
+```
 
-Feel free to contribute to the project by submitting issues or pull requests. For more detailed information on how to configure and use the bot, refer to the API documentation provided by Openrouter.AI.
+The image is build for `amd64` and `arm64` platforms using [docker buildx](https://github.com/docker/buildx).
+
+## Build
+
+```bash
+git clone https://github.com/Lifailon/openrouter-bot
+cd openrouter-bot
+docker-compose up -d --build
+```
