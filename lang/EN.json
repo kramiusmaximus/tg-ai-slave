@@ -15,7 +15,7 @@
   "description": {
     "start": "Start working with the bot",
     "help": "Show help",
-    "reset": "Clear conversation history, read the help for additional information",
+    "reset": "Clear conversation history",
     "stats": "Show usage statistics",
     "stop": "Stop the current request"
   },

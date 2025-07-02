@@ -1,4 +1,4 @@
-module openrouter-gpt-telegram-bot
+module openrouter-bot
 
 go 1.23.4
 

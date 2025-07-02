@@ -2,7 +2,7 @@
 package user
 
 import (
-	"openrouter-gpt-telegram-bot/config"
+	"openrouter-bot/config"
 	"strconv"
 	"sync"
 )

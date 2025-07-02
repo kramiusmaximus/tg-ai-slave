@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"openrouter-gpt-telegram-bot/config"
+	"openrouter-bot/config"
 	"os"
 	"path/filepath"
 	"strings"

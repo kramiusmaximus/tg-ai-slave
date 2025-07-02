@@ -2,14 +2,15 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"openrouter-bot/api"
+	"openrouter-bot/config"
+	"openrouter-bot/lang"
+	"openrouter-bot/user"
+	"strconv"
+
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/sashabaranov/go-openai"
-	"log"
-	"openrouter-gpt-telegram-bot/api"
-	"openrouter-gpt-telegram-bot/config"
-	"openrouter-gpt-telegram-bot/lang"
-	"openrouter-gpt-telegram-bot/user"
-	"strconv"
 )
 
 func main() {

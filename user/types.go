@@ -1,9 +1,10 @@
 package user
 
 import (
-	"github.com/sashabaranov/go-openai"
 	"sync"
 	"time"
+
+	"github.com/sashabaranov/go-openai"
 )
 
 type UsageTracker struct {
