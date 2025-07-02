@@ -7,13 +7,17 @@
     </div>
 </h1>
 
-This project allows you to quickly and free launch your Telegram bot to communicate with cloud AI via [OpenRouter](https://openrouter.ai) for you and your family.
+<h4 align="center">
+    <strong>English (🇺🇸)</strong> | <a href="README_RU.md">Русский (🇷🇺)</a>
+</h4>
+
+This project allows to launch your Telegram bot in a few minutes to communicate with free or paid AI models via [OpenRouter](https://openrouter.ai).
 
 > [!NOTE]
 > This repository is a fork of the [openrouter-gpt-telegram-bot](https://github.com/deinfinite/openrouter-gpt-telegram-bot) project, which adds `Markdown` formatting to bot responses and optimizes the process of launching in a container.
 
 <details>
-    <summary>Example Markdown formatting</summary>
+    <summary>Example</summary>
     <img src="./img/example.png">
 </details>
 
@@ -56,7 +60,7 @@ GUEST_BUDGET=0
 LANG=EN
 ```
 
-The list of all parameters is listed in the `.env.example` file.
+The list of all parameters is listed in the [.env.example](https://github.com/Lifailon/openrouter-bot/blob/main/.env.example) file.
 
 - Download the image from [Docker Hub](https://hub.docker.com/r/lifailon/openrouter-bot) and run the container:
 
@@ -67,7 +71,7 @@ docker run -d --name OpenRouter-Bot \
     lifailon/openrouter-bot:latest
 ```
 
-The image is build for `amd64` and `arm64` platforms using [docker buildx](https://github.com/docker/buildx).
+The image is build for `amd64` and `arm64` (Raspberry Pi) platforms using [docker buildx](https://github.com/docker/buildx).
 
 ## Build
 
