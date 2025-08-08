@@ -4,7 +4,7 @@ services:
     image: lifailon/openrouter-bot:latest
     build:
       context: .
-      dockerfile: dockerfile
+      dockerfile: Dockerfile
     volumes:
       - .env:/openrouter-bot/.env
     restart: unless-stopped
