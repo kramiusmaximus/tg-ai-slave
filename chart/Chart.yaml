@@ -1,0 +1,24 @@
+apiVersion: v2
+name: openrouter-bot
+description: OpenRouter in Telegram 
+version: 0.1.0
+appVersion: "0.4.0"
+
+icon: https://raw.githubusercontent.com/Lifailon/openrouter-bot/main/img/logo.png
+
+home: https://github.com/Lifailon/openrouter-bot
+
+sources:
+  - https://github.com/Lifailon/openrouter-bot
+
+maintainers:
+  - name: Lifailon
+    url: https://github.com/Lifailon
+
+keywords:
+  - telegram
+  - bot
+  - openrouter
+  - ai
+  - llm
+  - gpt

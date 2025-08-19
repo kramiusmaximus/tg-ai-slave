@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values: [openrouter-bot]
+            topologyKey: "kubernetes.io/hostname"
+      terminationGracePeriodSeconds: 30
+      containers:
+      - image: {{ .Values.image }}
+        name: {{ .Release.Name }}
+        imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            cpu: "{{ .Values.resources.requests.cpu | default "100m" }}"
+            memory: "{{ .Values.resources.requests.memory | default "128Mi" }}"
+          limits:
+            cpu: "{{ .Values.resources.limits.cpu | default "200m" }}"
+            memory: "{{ .Values.resources.limits.memory | default "256Mi" }}"
+        {{- if .Values.readinessProbe.enabled }}
+        readinessProbe:
+          exec:
+            command: {{ .Values.probeSettings.exec.command | toJson }}
+          initialDelaySeconds: {{ .Values.probeSettings.initialDelaySeconds }}
+          periodSeconds: {{ .Values.probeSettings.periodSeconds }}
+          timeoutSeconds: {{ .Values.probeSettings.timeoutSeconds }}
+          failureThreshold: {{ .Values.probeSettings.failureThreshold }}
+        {{- end }}
+        {{- if .Values.livenessProbe.enabled }}
+        livenessProbe:
+          exec:
+            command: {{ .Values.probeSettings.exec.command | toJson }}
+          initialDelaySeconds: {{ .Values.probeSettings.initialDelaySeconds }}
+          periodSeconds: {{ .Values.probeSettings.periodSeconds }}
+          timeoutSeconds: {{ .Values.probeSettings.timeoutSeconds }}
+          failureThreshold: {{ .Values.probeSettings.failureThreshold }}
+        {{- end }}
+        volumeMounts:
+        - name: config-volume
+          mountPath: /openrouter-bot/.env
+          subPath: .env
+      volumes:
+      - name: config-volume
+        configMap:
+          name: {{ .Release.Name }}-config
+          items:
+          - key: .env
+            path: .env

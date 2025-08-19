@@ -1,0 +1,35 @@
+# Deployment
+replicaCount: 1
+image: "lifailon/openrouter-bot:latest"
+resources:
+  requests:
+    cpu: "100m"
+    memory: "128Mi"
+  limits:
+    cpu: "200m"
+    memory: "256Mi"
+readinessProbe:
+  enabled: true
+livenessProbe:
+  enabled: true
+probeSettings:
+  exec:
+    command: ["pgrep", "-f", "openrouter-bot"]
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+# configMap for env
+API_KEY: "sk-or-v1-XXX"
+TELEGRAM_BOT_TOKEN: "7777777777:XXX"
+ADMIN_IDS: "7777777777"
+ALLOWED_USER_IDS: "7777777777,8888888888"
+BASE_URL: https://openrouter.ai/api/v1
+MODEL: deepseek/deepseek-r1:free
+VISION: false
+MAX_HISTORY_SIZE: 20
+MAX_HISTORY_TIME: 60
+GUEST_BUDGET: 0
+LANG: RU
+STATS_MIN_ROLE: ADMIN
