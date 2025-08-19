@@ -7,6 +7,8 @@ import (
 	"io"
 	"log"
 	"openrouter-bot/config"
+	configs "openrouter-bot/config"
+	"openrouter-bot/lang"
 	"openrouter-bot/user"
 	"time"
 
@@ -18,6 +20,54 @@ func HandleChatGPTStreamResponse(bot *tgbotapi.BotAPI, client *openai.Client, me
 	ctx := context.Background()
 	user.CheckHistory(config.MaxHistorySize, config.MaxHistoryTime)
 	user.LastMessageTime = time.Now()
+
+	err := lang.LoadTranslations("./lang/")
+	if err != nil {
+		log.Fatalf("Error loading translations: %v", err)
+	}
+
+	manager, err := configs.NewManager("./config.yaml")
+	if err != nil {
+		log.Fatalf("Error initializing config manager: %v", err)
+	}
+
+	conf := manager.GetConfig()
+
+	// Отправляем сообщение о загрузке с анимацией точек
+	loadMessage := lang.Translate("loadText", conf.Lang)
+	errorMessage := lang.Translate("errorText", conf.Lang)
+
+	processingMsg := tgbotapi.NewMessage(message.Chat.ID, loadMessage)
+	sentMsg, err := bot.Send(processingMsg)
+	if err != nil {
+		log.Printf("Failed to send processing message: %v", err)
+		return ""
+	}
+	lastMessageID := sentMsg.MessageID
+
+	// Горутина для анимации точек
+	stopAnimation := make(chan bool)
+	go func() {
+		dots := []string{"", ".", "..", "...", "..", "."}
+		i := 0
+		for {
+			select {
+			case <-stopAnimation:
+				return
+			default:
+				text := fmt.Sprintf("%s%s", loadMessage, dots[i])
+				editMsg := tgbotapi.NewEditMessageText(message.Chat.ID, lastMessageID, text)
+				_, err := bot.Send(editMsg)
+				if err != nil {
+					log.Printf("Failed to update processing message: %v", err)
+				}
+
+				i = (i + 1) % len(dots)
+				time.Sleep(500 * time.Millisecond)
+			}
+		}
+	}()
+
 	messages := []openai.ChatCompletionMessage{
 		{
 			Role:    openai.ChatMessageRoleSystem,
@@ -31,6 +81,7 @@ func HandleChatGPTStreamResponse(bot *tgbotapi.BotAPI, client *openai.Client, me
 			Content: msg.Content,
 		})
 	}
+
 	if config.Vision == "true" {
 		messages = append(messages, addVisionMessage(bot, message, config))
 	} else {
@@ -39,6 +90,7 @@ func HandleChatGPTStreamResponse(bot *tgbotapi.BotAPI, client *openai.Client, me
 			Content: message.Text,
 		})
 	}
+
 	req := openai.ChatCompletionRequest{
 		Model:            config.Model.ModelName,
 		FrequencyPenalty: float32(config.Model.FrequencyPenalty),
@@ -53,15 +105,19 @@ func HandleChatGPTStreamResponse(bot *tgbotapi.BotAPI, client *openai.Client, me
 	stream, err := client.CreateChatCompletionStream(ctx, req)
 	if err != nil {
 		fmt.Printf("ChatCompletionStream error: %v\n", err)
+		stopAnimation <- true
+		bot.Send(tgbotapi.NewEditMessageText(message.Chat.ID, lastMessageID, errorMessage))
 		return ""
 	}
 	defer stream.Close()
 	user.CurrentStream = stream
-	var lastMessageID int
+
+	// Останавливаем анимацию, когда начинаем получать ответ
+	stopAnimation <- true
 	var messageText string
-	var lastSentTime time.Time
 	responseID := ""
 	log.Printf("User: " + user.UserName + " Stream response. ")
+
 	for {
 		response, err := stream.Recv()
 		if responseID == "" {
@@ -89,33 +145,18 @@ func HandleChatGPTStreamResponse(bot *tgbotapi.BotAPI, client *openai.Client, me
 			user.CurrentStream = nil
 			return responseID
 		}
-		if lastMessageID == 0 {
+
+		if len(response.Choices) > 0 {
 			messageText += response.Choices[0].Delta.Content
-			msg := tgbotapi.NewMessage(message.Chat.ID, messageText)
-			msg.ParseMode = tgbotapi.ModeMarkdown
-			sentMsg, err := bot.Send(msg)
+			editMsg := tgbotapi.NewEditMessageText(message.Chat.ID, lastMessageID, messageText)
+			editMsg.ParseMode = tgbotapi.ModeMarkdown
+			_, err := bot.Send(editMsg)
 			if err != nil {
 				continue
 			}
-			lastMessageID = sentMsg.MessageID
-			lastSentTime = time.Now()
 		} else {
-			if len(response.Choices) > 0 {
-				messageText += response.Choices[0].Delta.Content
-				if time.Since(lastSentTime) >= 800*time.Millisecond {
-					editMsg := tgbotapi.NewEditMessageText(message.Chat.ID, lastMessageID, messageText)
-					editMsg.ParseMode = tgbotapi.ModeMarkdown
-					_, err := bot.Send(editMsg)
-					if err != nil {
-						// log.Printf("Failed to edit message: %v", err)
-						continue
-					}
-					lastSentTime = time.Now()
-				}
-			} else {
-				log.Printf("Received empty response choices")
-				continue
-			}
+			log.Printf("Received empty response choices")
+			continue
 		}
 	}
 }
@@ -165,5 +206,4 @@ func addVisionMessage(bot *tgbotapi.BotAPI, message *tgbotapi.Message, config *c
 			Content: message.Text,
 		}
 	}
-
 }
