@@ -14,11 +14,12 @@
 Этот проект позволяет за несколько минут запустить своего Telegram бота для общения с бесплатными и платными моделями ИИ через [OpenRouter](https://openrouter.ai), или локальными LLM, например, через [LM Studio](https://lmstudio.ai).
 
 > [!NOTE]
-> Этот репозиторий является форком проекта [openrouter-gpt-telegram-bot](https://github.com/deinfinite/openrouter-gpt-telegram-bot), который реализует форматирование `Markdown` в ответах бота и оптимизирует процесс запуска в контейнере.
+> Этот репозиторий является форком проекта [openrouter-gpt-telegram-bot](https://github.com/deinfinite/openrouter-gpt-telegram-bot), который добавляет новые функции (например, изменение текущей модели и форматирование `Markdown` в ответах бота) и оптимизирует процесс запуска в контейнере.
 
 <details>
     <summary>Пример</summary>
     <img src="./img/example.png">
+    <img src="./img/commands.png">
 </details>
 
 ## Подготовка
@@ -32,16 +33,20 @@
 > [!TIP]
 > При запуске бота вы сможете увидеть в логах идентификаторы других пользователей, которым вы также сможете предоставить доступ к боту в дальнейшем.
 
-## Запуск
+## Установка
 
-- Создать рабочий каталог бота:
+Для локального запуска в системе Windows или Linux, загрузите предварительно собранный бинарный файл (без зависимостей) на странице [релизов](https://github.com/Lifailon/openrouter-bot/releases).
+
+### Запуск в Docker
+
+- Создайте рабочий каталог бота:
 
 ```bash
 mkdir openrouter-bot
 cd openrouter-bot
 ```
 
-- Создайте `.env` файл и заполните основные переменные:
+- Создайте `.env` файл и заполните базовые переменные:
 
 ```bash
 # OpenRouter api key
@@ -60,9 +65,9 @@ GUEST_BUDGET=0
 LANG=RU
 ```
 
-Список всех параметров приведен в файле [.env.example](https://github.com/Lifailon/openrouter-bot/blob/main/.env.example).
+Список всех параметров приведен в файле [.env.example](https://github.com/Lifailon/openrouter-bot/blob/main/.env.example)
 
-- Загрузите образ из [Docker Hub](https://hub.docker.com/r/lifailon/openrouter-bot) и запустите контейнер:
+- Запустите контейнер, используя образ из [Docker Hub](https://hub.docker.com/r/lifailon/openrouter-bot):
 
 ```bash
 docker run -d --name OpenRouter-Bot \

@@ -14,11 +14,12 @@
 This project allows you to launch your Telegram bot in a few minutes to communicate with free and paid AI models via [OpenRouter](https://openrouter.ai), or local LLMs, for example, via [LM Studio](https://lmstudio.ai).
 
 > [!NOTE]
-> This repository is a fork of the [openrouter-gpt-telegram-bot](https://github.com/deinfinite/openrouter-gpt-telegram-bot) project, which adds `Markdown` formatting to bot responses and optimizes the process of launching in a container.
+> This repository is a fork of the [openrouter-gpt-telegram-bot](https://github.com/deinfinite/openrouter-gpt-telegram-bot) project, which adds new features (such as switch current model and `Markdown` formatting in bot responses) and optimizes the container startup process.
 
 <details>
     <summary>Example</summary>
     <img src="./img/example.png">
+    <img src="./img/commands.png">
 </details>
 
 ## Preparation
@@ -32,7 +33,11 @@ This project allows you to launch your Telegram bot in a few minutes to communic
 > [!TIP]
 > When you launch the bot, you will be able to see the IDs of other users in the log, to whom you can also grant access to the bot in the future.
 
-## Launch
+## Installation
+
+To run locally on Windows or Linux system, download the pre-built binary (without dependencies) from the [releases](https://github.com/Lifailon/openrouter-bot/releases) page.
+
+### Running in Docker
 
 - Create a working directory:
 
@@ -60,9 +65,9 @@ GUEST_BUDGET=0
 LANG=EN
 ```
 
-The list of all parameters is listed in the [.env.example](https://github.com/Lifailon/openrouter-bot/blob/main/.env.example) file.
+The list of all parameters is listed in the [.env.example](https://github.com/Lifailon/openrouter-bot/blob/main/.env.example) file
 
-- Download the image from [Docker Hub](https://hub.docker.com/r/lifailon/openrouter-bot) and run the container:
+- Run a container using the image from [Docker Hub](https://hub.docker.com/r/lifailon/openrouter-bot):
 
 ```bash
 docker run -d --name OpenRouter-Bot \
