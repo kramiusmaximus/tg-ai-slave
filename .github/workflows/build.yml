@@ -72,19 +72,22 @@ jobs:
           mv bin/openrouter-bot-${{ github.event.inputs.Version }}-windows-amd64.exe bin/openrouter-bot-windows/openrouter-bot.exe
           cp ./.env.example bin/openrouter-bot-windows/.env
           cp ./config.yaml bin/openrouter-bot-windows/config.yaml
-          cp ./lang bin/openrouter-bot-windows/lang
+          cp -r ./lang bin/openrouter-bot-windows/lang
+          mkdir bin/openrouter-bot-windows/logs
           mv bin/openrouter-bot-${{ github.event.inputs.Version }}-linux-amd64 bin/openrouter-bot-linux/openrouter-bot
           cp ./.env.example bin/openrouter-bot-linux/.env
           cp ./config.yaml bin/openrouter-bot-linux/config.yaml
-          cp ./lang bin/openrouter-bot-linux/lang
+          cp -r ./lang bin/openrouter-bot-linux/lang
+          mkdir bin/openrouter-bot-linux/logs
           mv bin/openrouter-bot-${{ github.event.inputs.Version }}-linux-arm64 bin/openrouter-bot-raspberry-pi/openrouter-bot
           cp ./.env.example bin/openrouter-bot-raspberry-pi/.env
           cp ./config.yaml bin/openrouter-bot-raspberry-pi/config.yaml
-          cp ./lang bin/openrouter-bot-raspberry-pi/lang
+          cp -r ./lang bin/openrouter-bot-raspberry-pi/lang
+          mkdir bin/openrouter-bot-raspberry-pi/logs
           ls -lha bin/*
-          tar -cvf bin/openrouter-bot-windows.tar -C bin/openrouter-bot-windows/ openrouter-bot.exe .env config.yaml lang
-          tar -cvf bin/openrouter-bot-linux.tar -C bin/openrouter-bot-linux/ openrouter-bot .env config.yaml lang
-          tar -cvf bin/openrouter-bot-raspberry-pi.tar -C bin/openrouter-bot-raspberry-pi/ openrouter-bot .env config.yaml lang
+          tar -cvf bin/openrouter-bot-windows.tar -C bin/openrouter-bot-windows/ openrouter-bot.exe .env config.yaml lang logs
+          tar -cvf bin/openrouter-bot-linux.tar -C bin/openrouter-bot-linux/ openrouter-bot .env config.yaml lang logs
+          tar -cvf bin/openrouter-bot-raspberry-pi.tar -C bin/openrouter-bot-raspberry-pi/ openrouter-bot .env config.yaml lang logs
 
       - name: Upload binaries for Windows
         if: ${{ github.event.inputs.Binary == 'true' }}
