@@ -46,7 +46,7 @@ mkdir openrouter-bot
 cd openrouter-bot
 ```
 
-- Создайте `.env` файл и заполните базовые переменные:
+- Создайте `.env` файл и заполните базовые параметры:
 
 ```bash
 # OpenRouter api key
@@ -59,13 +59,13 @@ TELEGRAM_BOT_TOKEN=
 ADMIN_IDS=
 # Список пользователей для доступа к боту, разделенных запятыми
 ALLOWED_USER_IDS=
-# Отключить гостевой доступ
+# Отключить гостевой доступ (включен по умолчанию)
 GUEST_BUDGET=0
 # Язык, используемый в ответах бота
 LANG=RU
 ```
 
-Список всех параметров приведен в файле [.env.example](https://github.com/Lifailon/openrouter-bot/blob/main/.env.example)
+Список всех доступных параметров приведен в файле [.env.example](https://github.com/Lifailon/openrouter-bot/blob/main/.env.example)
 
 - Запустите контейнер, используя образ из [Docker Hub](https://hub.docker.com/r/lifailon/openrouter-bot):
 

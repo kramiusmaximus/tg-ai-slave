@@ -21,7 +21,7 @@ type: openrouter
 model: openai/gpt-4o-mini
 base_url: https://openrouter.ai/api/v1
 temperature: 0.7
-top_p: 0.9
+top_p: 0.7
 
 # Assistant configuration
 assistant_prompt: |

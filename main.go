@@ -20,7 +20,7 @@ func main() {
 		log.Fatalf("Error loading translations: %v", err)
 	}
 
-	manager, err := config.NewManager("./config.yaml") // or the path to your config file
+	manager, err := config.NewManager("./config.yaml")
 	if err != nil {
 		log.Fatalf("Error initializing config manager: %v", err)
 	}
@@ -45,7 +45,7 @@ func main() {
 
 	updates := bot.GetUpdatesChan(u)
 
-	//Set bot commands
+	// Set bot commands
 	commands := []tgbotapi.BotCommand{
 		{Command: "start", Description: lang.Translate("description.start", conf.Lang)},
 		{Command: "help", Description: lang.Translate("description.help", conf.Lang)},
