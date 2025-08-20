@@ -32,36 +32,38 @@ type APIResponse struct {
 }
 
 func GetFreeModels() (string, error) {
-	// Запрос для получения списка моделей
-	resp, err := http.Get("https://openrouter.ai/api/v1/models")
+	manager, err := config.NewManager("./config.yaml")
+	if err != nil {
+		log.Fatalf("Error initializing config manager: %v", err)
+	}
+	conf := manager.GetConfig()
+
+	resp, err := http.Get(conf.OpenAIBaseURL + "/models")
 	if err != nil {
 		return "", fmt.Errorf("error get models: %v", err)
 	}
 	defer resp.Body.Close()
 
-	// Читаем ответ
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", fmt.Errorf("error read response: %v", err)
 	}
 
-	// Парсим JSON
 	var apiResponse APIResponse
 	err = json.Unmarshal(body, &apiResponse)
 	if err != nil {
 		return "", fmt.Errorf("error parse json: %v", err)
 	}
 
-	// Формируем ответ
 	var result strings.Builder
 	for _, model := range apiResponse.Data {
-		// Фильтруем по цене
+		// Filter by price
 		if model.Pricing.Prompt == "0" {
-			// Экранируем символы * и _
 			// escapedDesc := strings.ReplaceAll(model.Description, "*", "\\*")
 			// escapedDesc = strings.ReplaceAll(escapedDesc, "_", "\\_")
 			// result.WriteString(fmt.Sprintf("%s - %s\n", model.ID, escapedDesc))
-			result.WriteString(fmt.Sprintf("`%s`\n", model.ID))
+			result.WriteString(fmt.Sprintf("➡ `%s`\n", model.ID))
+			// result.WriteString(fmt.Sprintf("➡ `/set_model %s`\n", model.ID))
 		}
 	}
 	return result.String(), nil
@@ -84,7 +86,7 @@ func HandleChatGPTStreamResponse(bot *tgbotapi.BotAPI, client *openai.Client, me
 
 	conf := manager.GetConfig()
 
-	// Отправляем сообщение о загрузке с анимацией точек
+	// Send a loading message with animation points
 	loadMessage := lang.Translate("loadText", conf.Lang)
 	errorMessage := lang.Translate("errorText", conf.Lang)
 
@@ -96,7 +98,7 @@ func HandleChatGPTStreamResponse(bot *tgbotapi.BotAPI, client *openai.Client, me
 	}
 	lastMessageID := sentMsg.MessageID
 
-	// Горутина для анимации точек
+	// Goroutine for animation points
 	stopAnimation := make(chan bool)
 	go func() {
 		dots := []string{"", ".", "..", "...", "..", "."}
@@ -153,6 +155,7 @@ func HandleChatGPTStreamResponse(bot *tgbotapi.BotAPI, client *openai.Client, me
 		Stream:           true,
 	}
 
+	// Error handling and sending a response message
 	stream, err := client.CreateChatCompletionStream(ctx, req)
 	if err != nil {
 		fmt.Printf("ChatCompletionStream error: %v\n", err)
@@ -163,7 +166,7 @@ func HandleChatGPTStreamResponse(bot *tgbotapi.BotAPI, client *openai.Client, me
 	defer stream.Close()
 	user.CurrentStream = stream
 
-	// Останавливаем анимацию, когда начинаем получать ответ
+	// Stop the animation when we start receiving a response
 	stopAnimation <- true
 	var messageText string
 	responseID := ""
