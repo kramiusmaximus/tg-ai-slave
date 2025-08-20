@@ -1,5 +1,5 @@
 # Build image
-FROM golang:1.25-alpine3.20 AS build
+FROM golang:1.25 AS build
 WORKDIR /openrouter-bot
 COPY . .
 # Download dependencies for caching
