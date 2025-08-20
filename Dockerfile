@@ -1,6 +1,5 @@
-
 # Build image
-FROM golang:1.23-alpine3.20 AS build
+FROM golang:1.25-alpine3.20 AS build
 WORKDIR /openrouter-bot
 COPY . .
 # Download dependencies for caching
@@ -10,7 +9,7 @@ ARG TARGETOS TARGETARCH
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o /openrouter-bot/openrouter-bot
 
 # Final image
-FROM alpine:3.20
+FROM alpine:3.22
 WORKDIR /openrouter-bot
 # Copy config and langs
 COPY --from=build /openrouter-bot/config.yaml ./
