@@ -8,6 +8,7 @@ import (
 	"openrouter-bot/lang"
 	"openrouter-bot/user"
 	"strconv"
+	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/sashabaranov/go-openai"
@@ -48,6 +49,8 @@ func main() {
 	commands := []tgbotapi.BotCommand{
 		{Command: "start", Description: lang.Translate("description.start", conf.Lang)},
 		{Command: "help", Description: lang.Translate("description.help", conf.Lang)},
+		{Command: "get_models", Description: lang.Translate("description.getModels", conf.Lang)},
+		{Command: "set_model", Description: lang.Translate("description.setModel", conf.Lang)},
 		{Command: "reset", Description: lang.Translate("description.reset", conf.Lang)},
 		{Command: "stats", Description: lang.Translate("description.stats", conf.Lang)},
 		{Command: "stop", Description: lang.Translate("description.stop", conf.Lang)},
@@ -80,10 +83,42 @@ func main() {
 				msg := tgbotapi.NewMessage(update.Message.Chat.ID, lang.Translate("commands.help", conf.Lang))
 				msg.ParseMode = "HTML"
 				bot.Send(msg)
+			case "get_models":
+				models, _ := api.GetFreeModels()
+				if err != nil {
+					fmt.Printf("Error: %v\n", err)
+					return
+				}
+				// fmt.Println(models)
+				text := lang.Translate("commands.getModels", conf.Lang) + models
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, text)
+				msg.ParseMode = tgbotapi.ModeMarkdown
+				_, err := bot.Send(msg)
+				if err != nil {
+					fmt.Printf("Error: %v\n", err)
+					return
+				}
+			case "set_model":
+				args := update.Message.CommandArguments()
+				argsArr := strings.Split(args, " ")
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, conf.Model.ModelName)
+				msg.ParseMode = tgbotapi.ModeMarkdown
+				switch {
+				case args == "default":
+					conf.Model.ModelName = conf.Model.ModelNameDefault
+					msg.Text = lang.Translate("commands.setModel", conf.Lang) + " `" + conf.Model.ModelName + "`"
+				case args == "":
+					msg.Text = lang.Translate("commands.noArgsModel", conf.Lang)
+				case len(argsArr) > 1:
+					msg.Text = lang.Translate("commands.noSpaceModel", conf.Lang)
+				default:
+					conf.Model.ModelName = argsArr[0]
+					msg.Text = lang.Translate("commands.setModel", conf.Lang) + " `" + conf.Model.ModelName + "`"
+				}
+				bot.Send(msg)
 			case "reset":
 				args := update.Message.CommandArguments()
 				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "")
-
 				if args == "system" {
 					userStats.SystemPrompt = conf.SystemPrompt
 					msg.Text = lang.Translate("commands.reset_system", conf.Lang)

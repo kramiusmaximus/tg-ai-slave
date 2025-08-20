@@ -40,6 +40,7 @@ type Config struct {
 type ModelParameters struct {
 	Type              string
 	ModelName         string
+	ModelNameDefault  string
 	ModelReq          openai.ChatCompletionRequest
 	FrequencyPenalty  float64
 	MinP              float64
@@ -70,10 +71,11 @@ func Load() (*Config, error) {
 		TelegramBotToken: os.Getenv("TELEGRAM_BOT_TOKEN"),
 		OpenAIApiKey:     os.Getenv("API_KEY"),
 		Model: ModelParameters{
-			Type:        viper.GetString("TYPE"),
-			ModelName:   viper.GetString("MODEL"),
-			Temperature: viper.GetFloat64("TEMPERATURE"),
-			TopP:        viper.GetFloat64("TOP_P"),
+			Type:             viper.GetString("TYPE"),
+			ModelName:        viper.GetString("MODEL"),
+			ModelNameDefault: viper.GetString("MODEL"),
+			Temperature:      viper.GetFloat64("TEMPERATURE"),
+			TopP:             viper.GetFloat64("TOP_P"),
 		},
 		MaxTokens:          viper.GetInt("MAX_TOKENS"),
 		OpenAIBaseURL:      viper.GetString("BASE_URL"),

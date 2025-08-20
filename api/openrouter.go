@@ -2,19 +2,70 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"openrouter-bot/config"
 	configs "openrouter-bot/config"
 	"openrouter-bot/lang"
 	"openrouter-bot/user"
+	"strings"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/sashabaranov/go-openai"
 )
+
+type Model struct {
+	ID          string `json:"id"`
+	Description string `json:"description"`
+	Pricing     struct {
+		Prompt string `json:"prompt"`
+	} `json:"pricing"`
+}
+
+type APIResponse struct {
+	Data []Model `json:"data"`
+}
+
+func GetFreeModels() (string, error) {
+	// Запрос для получения списка моделей
+	resp, err := http.Get("https://openrouter.ai/api/v1/models")
+	if err != nil {
+		return "", fmt.Errorf("error get models: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Читаем ответ
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("error read response: %v", err)
+	}
+
+	// Парсим JSON
+	var apiResponse APIResponse
+	err = json.Unmarshal(body, &apiResponse)
+	if err != nil {
+		return "", fmt.Errorf("error parse json: %v", err)
+	}
+
+	// Формируем ответ
+	var result strings.Builder
+	for _, model := range apiResponse.Data {
+		// Фильтруем по цене
+		if model.Pricing.Prompt == "0" {
+			// Экранируем символы * и _
+			// escapedDesc := strings.ReplaceAll(model.Description, "*", "\\*")
+			// escapedDesc = strings.ReplaceAll(escapedDesc, "_", "\\_")
+			// result.WriteString(fmt.Sprintf("%s - %s\n", model.ID, escapedDesc))
+			result.WriteString(fmt.Sprintf("`%s`\n", model.ID))
+		}
+	}
+	return result.String(), nil
+}
 
 func HandleChatGPTStreamResponse(bot *tgbotapi.BotAPI, client *openai.Client, message *tgbotapi.Message, config *config.Config, user *user.UsageTracker) string {
 	ctx := context.Background()
