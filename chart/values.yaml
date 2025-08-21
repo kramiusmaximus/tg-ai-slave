@@ -1,6 +1,8 @@
 # Deployment
 replicaCount: 1
-image: "lifailon/openrouter-bot:latest"
+image:
+  img: "lifailon/openrouter-bot"
+  tag: "latest"
 resources:
   requests:
     cpu: "100m"

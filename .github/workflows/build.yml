@@ -12,7 +12,7 @@ on:
         default: true
         type: boolean
       Version:
-        description: 'Version for binary'
+        description: 'Version for binary and tag for image'
         required: true
         default: 'latest'
         type: string
@@ -42,12 +42,12 @@ jobs:
       - name: Build and push Docker images for amd64 and arm64
         if: ${{ github.event.inputs.Docker == 'true' }}
         run: |
-          # docker build -t lifailon/openrouter-bot:latest .
-          # docker push lifailon/openrouter-bot:latest
+          # docker build -t lifailon/openrouter-bot:${{ github.event.inputs.Version }} .
+          # docker push lifailon/openrouter-bot:${{ github.event.inputs.Version }}
           docker buildx build \
             --platform \
             linux/amd64,linux/arm64 \
-            -t lifailon/openrouter-bot \
+            -t lifailon/openrouter-bot:${{ github.event.inputs.Version }} \
             --push .
         continue-on-error: true
 

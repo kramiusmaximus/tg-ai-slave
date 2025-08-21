@@ -2,7 +2,7 @@ apiVersion: v2
 name: openrouter-bot
 description: OpenRouter in Telegram 
 version: 0.1.0
-appVersion: "0.4.0"
+appVersion: "0.5.0"
 
 icon: https://raw.githubusercontent.com/Lifailon/openrouter-bot/main/img/logo.png
 

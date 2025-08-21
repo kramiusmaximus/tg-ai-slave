@@ -27,7 +27,7 @@ spec:
             topologyKey: "kubernetes.io/hostname"
       terminationGracePeriodSeconds: 30
       containers:
-      - image: {{ .Values.image }}
+      - image: {{ .Values.image.img }}:{{ .Values.image.tag }}
         name: {{ .Release.Name }}
         imagePullPolicy: IfNotPresent
         resources:
