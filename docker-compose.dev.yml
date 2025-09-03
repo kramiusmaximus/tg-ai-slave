@@ -1,0 +1,11 @@
+services:
+  openrouter-bot-dev:
+    container_name: openrouter-bot-dev
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    volumes:
+      - .:/openrouter-bot
+    restart: unless-stopped
+    entrypoint: ["air", "-c", ".air.toml"]

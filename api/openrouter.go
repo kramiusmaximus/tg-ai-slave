@@ -101,13 +101,14 @@ func HandleChatGPTStreamResponse(bot *tgbotapi.BotAPI, client *openai.Client, me
 	// Goroutine for animation points
 	stopAnimation := make(chan bool)
 	go func() {
-		dots := []string{"", ".", "..", "...", "..", "."}
+		dots := []string{".", "..", "..."}
 		i := 0
 		for {
 			select {
 			case <-stopAnimation:
 				return
 			default:
+				time.Sleep(500 * time.Millisecond)
 				text := fmt.Sprintf("%s%s", loadMessage, dots[i])
 				editMsg := tgbotapi.NewEditMessageText(message.Chat.ID, lastMessageID, text)
 				_, err := bot.Send(editMsg)
@@ -116,7 +117,6 @@ func HandleChatGPTStreamResponse(bot *tgbotapi.BotAPI, client *openai.Client, me
 				}
 
 				i = (i + 1) % len(dots)
-				time.Sleep(500 * time.Millisecond)
 			}
 		}
 	}()
