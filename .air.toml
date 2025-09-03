@@ -6,7 +6,7 @@ tmp_dir = "tmp"
 
 [build]
 # Just plain old go build command, nothing special.
-cmd = "go build -o ./tmp/main ."
+cmd = "go build -buildvcs=false -o ./tmp/main ."
 # Binary file yields from `cmd`.
 bin = "tmp/main"
 # Customize binary, can setup environmental variables when run your app.
