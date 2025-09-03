@@ -8,3 +8,7 @@ logs
 openrouter-bot
 *debug*
 *.exe
+tmp
+
+# vscode
+.vscode
