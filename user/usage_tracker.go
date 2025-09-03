@@ -129,6 +129,11 @@ func (ut *UsageTracker) saveUsage() error {
 	ut.FileMu.Lock()
 	defer ut.FileMu.Unlock()
 
+	if err := os.MkdirAll(ut.LogsDir, 0755); err != nil {
+		log.Printf("Error creating logs directory for user %s: %v", ut.UserID, err)
+		return fmt.Errorf("error creating logs directory: %w", err)
+	}
+
 	ut.UsageMu.Lock()
 	data, err := json.MarshalIndent(ut.Usage, "", "  ")
 	ut.UsageMu.Unlock()
@@ -268,7 +273,7 @@ func (ut *UsageTracker) GetUsageFromApi(id string, conf *config.Config) error {
 		return fmt.Errorf("error creating request: %w", err)
 	}
 
-	bearer := fmt.Sprintf("Bearer %s", conf.OpenAIApiKey)
+	bearer := fmt.Sprintf("Bearer %s", conf.OpenRouterAPIKey)
 	req.Header.Add("Authorization", bearer)
 
 	client := &http.Client{}
