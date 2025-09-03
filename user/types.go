@@ -20,14 +20,33 @@ type UsageTracker struct {
 	FileMu          sync.Mutex `json:"-"` // Мьютекс для синхронизации доступа к файлу
 }
 
-type Message struct {
-	Role    string
-	Content string
-}
-
 type History struct {
 	messages []Message
 	mu       sync.Mutex
+}
+
+type Message struct {
+	Role    string
+	Content []MessagePart
+}
+
+const (
+	RoleUser      = "user"
+	RoleAssistant = "assistant"
+	RoleSystem    = "system"
+
+	PartTypeText     = "text"
+	PartTypeImageURL = "image_url"
+)
+
+type MessagePart struct {
+	Type     string    `json:"type"`
+	Text     string    `json:"text,omitempty"`
+	ImageURL *ImageURL `json:"image_url,omitempty"`
+}
+
+type ImageURL struct {
+	URL string `json:"url"`
 }
 
 type UserUsage struct {

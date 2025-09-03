@@ -1,22 +1,16 @@
-# Build image
-FROM golang:1.25 AS build
+# Builder stage for both development and production
+FROM golang:1.25 AS builder
 WORKDIR /openrouter-bot
+RUN go install github.com/air-verse/air@latest
 COPY . .
-# Download dependencies for caching
 RUN go mod download
-# Build bot for determining os and architecture
 ARG TARGETOS TARGETARCH
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o /openrouter-bot/openrouter-bot
 
-# Final image
-FROM alpine:3.22
+# Final production image
+FROM alpine:3.22 AS production
 WORKDIR /openrouter-bot
-# Copy config and langs
-COPY --from=build /openrouter-bot/config.yaml ./
-COPY --from=build /openrouter-bot/lang/ ./lang/
-# Copy bot binary
-COPY --from=build /openrouter-bot/openrouter-bot ./
-# Creating directory for logs
+COPY --from=builder /openrouter-bot/config.yaml ./
+COPY --from=builder /openrouter-bot/lang/ ./lang/
+COPY --from=builder /openrouter-bot/openrouter-bot ./
 RUN mkdir logs
-
-ENTRYPOINT ["/openrouter-bot/openrouter-bot"]

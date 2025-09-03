@@ -2,10 +2,10 @@ package user
 
 import "time"
 
-func (ut *UsageTracker) AddMessage(role, content string) {
+func (ut *UsageTracker) AddMessage(role string, parts ...MessagePart) {
 	ut.History.mu.Lock()
 	defer ut.History.mu.Unlock()
-	ut.History.messages = append(ut.History.messages, Message{Role: role, Content: content})
+	ut.History.messages = append(ut.History.messages, Message{Role: role, Content: parts})
 }
 
 func (ut *UsageTracker) GetMessages() []Message {

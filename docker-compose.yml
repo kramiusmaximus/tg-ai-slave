@@ -5,6 +5,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: production
     volumes:
       - .env:/openrouter-bot/.env
     restart: unless-stopped
+    entrypoint: ["/openrouter-bot/openrouter-bot"]

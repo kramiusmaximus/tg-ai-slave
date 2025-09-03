@@ -17,7 +17,7 @@ import (
 
 type Config struct {
 	TelegramBotToken   string
-	OpenAIApiKey       string
+	OpenRouterAPIKey   string
 	Model              ModelParameters
 	MaxTokens          int
 	BotLanguage        string
@@ -70,7 +70,7 @@ func Load() (*Config, error) {
 
 	config := &Config{
 		TelegramBotToken: os.Getenv("TELEGRAM_BOT_TOKEN"),
-		OpenAIApiKey:     os.Getenv("API_KEY"),
+		OpenRouterAPIKey: os.Getenv("API_KEY"),
 		Model: ModelParameters{
 			Type:             viper.GetString("TYPE"),
 			ModelName:        viper.GetString("MODEL"),

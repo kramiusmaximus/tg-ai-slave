@@ -48,7 +48,7 @@ func GetParameters(conf *Config) (ModelResponse, error) {
 		return ModelResponse{}, err
 	}
 
-	bearer := fmt.Sprintf("Bearer %s", conf.OpenAIApiKey)
+	bearer := fmt.Sprintf("Bearer %s", conf.OpenRouterAPIKey)
 	req.Header.Add("Authorization", bearer)
 
 	client := &http.Client{

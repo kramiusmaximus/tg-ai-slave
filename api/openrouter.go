@@ -1,9 +1,10 @@
 package api
 
 import (
+	"bufio"
 	"context"
+	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -16,7 +17,6 @@ import (
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/sashabaranov/go-openai"
 )
 
 type Model struct {
@@ -57,22 +57,16 @@ func GetFreeModels() (string, error) {
 
 	var result strings.Builder
 	for _, model := range apiResponse.Data {
-		// Filter by price
 		if model.Pricing.Prompt == "0" {
-			// escapedDesc := strings.ReplaceAll(model.Description, "*", "\\*")
-			// escapedDesc = strings.ReplaceAll(escapedDesc, "_", "\\_")
-			// result.WriteString(fmt.Sprintf("%s - %s\n", model.ID, escapedDesc))
 			result.WriteString(fmt.Sprintf("➡ `%s`\n", model.ID))
-			// result.WriteString(fmt.Sprintf("➡ `/set_model %s`\n", model.ID))
 		}
 	}
 	return result.String(), nil
 }
 
-func HandleChatGPTStreamResponse(bot *tgbotapi.BotAPI, client *openai.Client, message *tgbotapi.Message, config *config.Config, user *user.UsageTracker) string {
-	ctx := context.Background()
-	user.CheckHistory(config.MaxHistorySize, config.MaxHistoryTime)
-	user.LastMessageTime = time.Now()
+func HandleUserMessage(bot *tgbotapi.BotAPI, client *http.Client, message *tgbotapi.Message, config *config.Config, u *user.UsageTracker) {
+	u.CheckHistory(config.MaxHistorySize-1, config.MaxHistoryTime) // minus one to account for the current message
+	u.LastMessageTime = time.Now()
 
 	err := lang.LoadTranslations("./lang/")
 	if err != nil {
@@ -85,179 +79,224 @@ func HandleChatGPTStreamResponse(bot *tgbotapi.BotAPI, client *openai.Client, me
 	}
 
 	conf := manager.GetConfig()
-
-	// Send a loading message with animation points
-	loadMessage := lang.Translate("loadText", conf.Lang)
 	errorMessage := lang.Translate("errorText", conf.Lang)
-
-	processingMsg := tgbotapi.NewMessage(message.Chat.ID, loadMessage)
-	sentMsg, err := bot.Send(processingMsg)
-	if err != nil {
-		log.Printf("Failed to send processing message: %v", err)
-		return ""
+	lastMessageID, stopAnimation := SendLoadingMessage(bot, message.Chat.ID, conf.Lang)
+	if lastMessageID == 0 {
+		return
 	}
-	lastMessageID := sentMsg.MessageID
-
-	// Goroutine for animation points
-	stopAnimation := make(chan bool)
-	go func() {
-		dots := []string{"", ".", "..", "...", "..", "."}
-		i := 0
-		for {
-			select {
-			case <-stopAnimation:
-				return
-			default:
-				text := fmt.Sprintf("%s%s", loadMessage, dots[i])
-				editMsg := tgbotapi.NewEditMessageText(message.Chat.ID, lastMessageID, text)
-				_, err := bot.Send(editMsg)
-				if err != nil {
-					log.Printf("Failed to update processing message: %v", err)
-				}
-
-				i = (i + 1) % len(dots)
-				time.Sleep(500 * time.Millisecond)
-			}
-		}
+	defer func() {
+		stopAnimation <- true
 	}()
 
-	messages := []openai.ChatCompletionMessage{
-		{
-			Role:    openai.ChatMessageRoleSystem,
-			Content: user.SystemPrompt,
-		},
+	parts, err := CreateMessageParts(bot, message)
+	if err != nil {
+		log.Printf("Error creating message parts: %v", err)
+		bot.Send(tgbotapi.NewEditMessageText(message.Chat.ID, lastMessageID, errorMessage))
+		return
 	}
 
-	for _, msg := range user.GetMessages() {
-		messages = append(messages, openai.ChatCompletionMessage{
+	u.AddMessage(user.RoleUser, parts...)
+
+	openrouterMessages := buildOpenrouterMessages(u)
+
+	resp, err := CreateChatCompletionStream(context.Background(), client, config, u, openrouterMessages)
+	if err != nil {
+		fmt.Printf("CreateChatCompletionStream: %v\n", err)
+		bot.Send(tgbotapi.NewEditMessageText(message.Chat.ID, lastMessageID, errorMessage))
+		return
+	}
+	defer resp.Body.Close()
+
+	stopAnimation <- true
+	agentMessage, err := ProcessStream(resp, bot, message, lastMessageID)
+	if err != nil {
+		fmt.Printf("ProcessStream: %v\n", err)
+		bot.Send(tgbotapi.NewEditMessageText(message.Chat.ID, lastMessageID, errorMessage))
+		return
+	}
+
+	AddAssistantMessageToHistory(u, agentMessage)
+
+	finalText := agentMessage.Text
+	if finalText == "" {
+		finalText = "Image generated."
+	}
+	editMsg := tgbotapi.NewEditMessageText(message.Chat.ID, lastMessageID, finalText)
+	editMsg.ParseMode = tgbotapi.ModeMarkdown
+	if _, err := bot.Send(editMsg); err != nil {
+		log.Printf("Failed to send final message edit: %v", err)
+	}
+
+	u.CurrentStream = nil
+}
+
+func CreateMessageParts(bot *tgbotapi.BotAPI, message *tgbotapi.Message) ([]user.MessagePart, error) {
+	parts := []user.MessagePart{{Type: user.PartTypeText, Text: message.Text}}
+
+	if message.Photo != nil && len(message.Photo) > 0 {
+		photo := message.Photo[len(message.Photo)-1]
+		fileURL, err := bot.GetFileDirectURL(photo.FileID)
+		if err != nil {
+			return nil, fmt.Errorf("error getting file URL: %w", err)
+		}
+
+		encodedImage, err := downloadAndEncodeImage(fileURL)
+		if err != nil {
+			return nil, fmt.Errorf("error downloading and encoding image: %w", err)
+		}
+
+		parts = append(parts, user.MessagePart{
+			Type: user.PartTypeImageURL,
+			ImageURL: &user.ImageURL{
+				URL: fmt.Sprintf("data:image/jpeg;base64,%s", encodedImage),
+			},
+		})
+	}
+	return parts, nil
+}
+
+func downloadAndEncodeImage(url string) (string, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("bad status: %s", resp.Status)
+	}
+
+	imgBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	return base64.StdEncoding.EncodeToString(imgBytes), nil
+}
+
+func buildOpenrouterMessages(u *user.UsageTracker) []ChatCompletionMessage {
+	var openrouterMessages []ChatCompletionMessage
+	for _, msg := range u.GetMessages() {
+		openrouterMessages = append(openrouterMessages, ChatCompletionMessage{
 			Role:    msg.Role,
 			Content: msg.Content,
 		})
 	}
-
-	if config.Vision == "true" {
-		messages = append(messages, addVisionMessage(bot, message, config))
-	} else {
-		messages = append(messages, openai.ChatCompletionMessage{
-			Role:    openai.ChatMessageRoleUser,
-			Content: message.Text,
-		})
-	}
-
-	req := openai.ChatCompletionRequest{
-		Model:            config.Model.ModelName,
-		FrequencyPenalty: float32(config.Model.FrequencyPenalty),
-		PresencePenalty:  float32(config.Model.PresencePenalty),
-		Temperature:      float32(config.Model.Temperature),
-		TopP:             float32(config.Model.TopP),
-		MaxTokens:        config.MaxTokens,
-		Messages:         messages,
-		Stream:           true,
-	}
-
-	// Error handling and sending a response message
-	stream, err := client.CreateChatCompletionStream(ctx, req)
-	if err != nil {
-		fmt.Printf("ChatCompletionStream error: %v\n", err)
-		stopAnimation <- true
-		bot.Send(tgbotapi.NewEditMessageText(message.Chat.ID, lastMessageID, errorMessage))
-		return ""
-	}
-	defer stream.Close()
-	user.CurrentStream = stream
-
-	// Stop the animation when we start receiving a response
-	stopAnimation <- true
-	var messageText string
-	responseID := ""
-	log.Printf("User: " + user.UserName + " Stream response. ")
-
-	for {
-		response, err := stream.Recv()
-		if responseID == "" {
-			responseID = response.ID
-		}
-		if errors.Is(err, io.EOF) {
-			fmt.Println("\nStream finished, response ID:", responseID)
-			user.AddMessage(openai.ChatMessageRoleUser, message.Text)
-			user.AddMessage(openai.ChatMessageRoleAssistant, messageText)
-			editMsg := tgbotapi.NewEditMessageText(message.Chat.ID, lastMessageID, messageText)
-			editMsg.ParseMode = tgbotapi.ModeMarkdown
-			_, err := bot.Send(editMsg)
-			if err != nil {
-				log.Printf("Failed to edit message: %v", err)
-			}
-			user.CurrentStream = nil
-			return responseID
-		}
-
-		if err != nil {
-			fmt.Printf("\nStream error: %v\n", err)
-			msg := tgbotapi.NewMessage(message.Chat.ID, err.Error())
-			msg.ParseMode = tgbotapi.ModeMarkdown
-			bot.Send(msg)
-			user.CurrentStream = nil
-			return responseID
-		}
-
-		if len(response.Choices) > 0 {
-			messageText += response.Choices[0].Delta.Content
-			editMsg := tgbotapi.NewEditMessageText(message.Chat.ID, lastMessageID, messageText)
-			editMsg.ParseMode = tgbotapi.ModeMarkdown
-			_, err := bot.Send(editMsg)
-			if err != nil {
-				continue
-			}
-		} else {
-			log.Printf("Received empty response choices")
-			continue
-		}
-	}
+	return openrouterMessages
 }
 
-func addVisionMessage(bot *tgbotapi.BotAPI, message *tgbotapi.Message, config *config.Config) openai.ChatCompletionMessage {
-	if len(message.Photo) > 0 {
-		// Assuming you want the largest photo size
-		photoSize := message.Photo[len(message.Photo)-1]
-		fileID := photoSize.FileID
+func AddAssistantMessageToHistory(u *user.UsageTracker, agentMessage AgentMessage) {
+	assistantParts := []user.MessagePart{{Type: user.PartTypeText, Text: agentMessage.Text}}
+	for _, img := range agentMessage.Images {
+		assistantParts = append(assistantParts, user.MessagePart{
+			Type: user.PartTypeImageURL,
+			ImageURL: &user.ImageURL{
+				URL: fmt.Sprintf("data:image/png;base64,%s", base64.StdEncoding.EncodeToString(img)),
+			},
+		})
+	}
+	u.AddMessage(user.RoleAssistant, assistantParts...)
+}
 
-		// Download the photo
-		file, err := bot.GetFile(tgbotapi.FileConfig{FileID: fileID})
+type ChatCompletionMessage struct {
+	Role    string      `json:"role"`
+	Content interface{} `json:"content"`
+}
+
+type AgentMessage struct {
+	Text   string
+	Images [][]byte
+}
+
+type StreamResponse struct {
+	Choices []struct {
+		Delta struct {
+			Content interface{} `json:"content"`
+			Images  []struct {
+				ImageURL struct {
+					URL string `json:"url"`
+				} `json:"image_url"`
+			} `json:"images"`
+		} `json:"delta"`
+	} `json:"choices"`
+}
+
+func ProcessStream(resp *http.Response, bot *tgbotapi.BotAPI, message *tgbotapi.Message, lastMessageID int) (AgentMessage, error) {
+	var agentMessage AgentMessage
+	var lastUpdateTime time.Time
+	var buffer strings.Builder
+
+	reader := bufio.NewReader(resp.Body)
+	for {
+		line, err := reader.ReadString('\n')
 		if err != nil {
-			log.Printf("Error getting file: %v", err)
-			return openai.ChatCompletionMessage{
-				Role:    openai.ChatMessageRoleUser,
-				Content: message.Text,
+			if err == io.EOF {
+				break
+			}
+			return agentMessage, fmt.Errorf("error reading stream: %w", err)
+		}
+
+		buffer.WriteString(line)
+
+		if strings.HasSuffix(buffer.String(), "\n\n") {
+			content := buffer.String()
+			buffer.Reset()
+
+			lines := strings.Split(strings.TrimSpace(content), "\n")
+			for _, l := range lines {
+				if strings.HasPrefix(l, "data: ") {
+					data := strings.TrimPrefix(l, "data: ")
+					if data == "[DONE]" {
+						return agentMessage, nil
+					}
+
+					var streamResp StreamResponse
+					if err := json.Unmarshal([]byte(data), &streamResp); err != nil {
+						log.Printf("Error unmarshalling stream response: %v", err)
+						continue
+					}
+					if len(streamResp.Choices) > 0 {
+						delta := streamResp.Choices[0].Delta
+						if content, ok := delta.Content.(string); ok && content != "" {
+							agentMessage.Text += content
+
+							if time.Since(lastUpdateTime) > 500*time.Millisecond && len(agentMessage.Text) > 0 {
+								editMsg := tgbotapi.NewEditMessageText(message.Chat.ID, lastMessageID, agentMessage.Text)
+								editMsg.ParseMode = tgbotapi.ModeMarkdown
+								bot.Send(editMsg)
+								lastUpdateTime = time.Now()
+							}
+						}
+						if len(delta.Images) > 0 {
+							for _, image := range delta.Images {
+								if image.ImageURL.URL != "" {
+									b64data := image.ImageURL.URL
+									if i := strings.Index(b64data, ","); i != -1 {
+										b64data = b64data[i+1:]
+									}
+
+									imgData, err := base64.StdEncoding.DecodeString(b64data)
+									if err != nil {
+										log.Printf("Error decoding base64 image: %v", err)
+										continue
+									}
+
+									agentMessage.Images = append(agentMessage.Images, imgData)
+
+									photoBytes := tgbotapi.FileBytes{
+										Name:  "image.png",
+										Bytes: imgData,
+									}
+									photoMsg := tgbotapi.NewPhoto(message.Chat.ID, photoBytes)
+									bot.Send(photoMsg)
+								}
+							}
+						}
+					}
+				}
 			}
 		}
-
-		// Access the file URL
-		fileURL := file.Link(bot.Token)
-		fmt.Println("Photo URL:", fileURL)
-		if message.Text == "" {
-			message.Text = config.VisionPrompt
-		}
-
-		return openai.ChatCompletionMessage{
-			Role: openai.ChatMessageRoleUser,
-			MultiContent: []openai.ChatMessagePart{
-				{
-					Type: openai.ChatMessagePartTypeText,
-					Text: message.Text,
-				},
-				{
-					Type: openai.ChatMessagePartTypeImageURL,
-					ImageURL: &openai.ChatMessageImageURL{
-						URL:    fileURL,
-						Detail: openai.ImageURLDetail(config.VisionDetails),
-					},
-				},
-			},
-		}
-	} else {
-		return openai.ChatCompletionMessage{
-			Role:    openai.ChatMessageRoleUser,
-			Content: message.Text,
-		}
 	}
+
+	return agentMessage, nil
 }

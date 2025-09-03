@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"openrouter-bot/api"
 	"openrouter-bot/config"
 	"openrouter-bot/lang"
@@ -11,7 +12,6 @@ import (
 	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/sashabaranov/go-openai"
 )
 
 func main() {
@@ -60,9 +60,7 @@ func main() {
 		log.Fatalf("Failed to set bot commands: %v", err)
 	}
 
-	clientOptions := openai.DefaultConfig(conf.OpenAIApiKey)
-	clientOptions.BaseURL = conf.OpenAIBaseURL
-	client := openai.NewClientWithConfig(clientOptions)
+	client := &http.Client{}
 
 	userManager := user.NewUserManager("logs")
 
@@ -166,10 +164,10 @@ func main() {
 			go func(userStats *user.UsageTracker) {
 				// Handle user message
 				if userStats.HaveAccess(conf) {
-					responseID := api.HandleChatGPTStreamResponse(bot, client, update.Message, conf, userStats)
-					if conf.Model.Type == "openrouter" {
-						userStats.GetUsageFromApi(responseID, conf)
-					}
+					api.HandleUserMessage(bot, client, update.Message, conf, userStats)
+					// if conf.Model.Type == "openrouter" {
+					// 	userStats.GetUsageFromApi(responseID, conf)
+					// }
 				} else {
 					msg := tgbotapi.NewMessage(update.Message.Chat.ID, lang.Translate("budget_out", conf.Lang))
 					_, err := bot.Send(msg)
