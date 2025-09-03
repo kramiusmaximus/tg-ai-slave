@@ -5,7 +5,7 @@ RUN go install github.com/air-verse/air@latest
 COPY . .
 RUN go mod download
 ARG TARGETOS TARGETARCH
-RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o /openrouter-bot/openrouter-bot
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -buildvcs=false -o /openrouter-bot/openrouter-bot .
 
 # Final production image
 FROM alpine:3.22 AS production
