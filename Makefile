@@ -14,7 +14,7 @@ ifeq ($(DEV_MODE),true)
 endif
 
 up:
-	docker-compose -f $(COMPOSE_FILE) up --build $(D_FLAG)
+	docker compose -f $(COMPOSE_FILE) up --build $(D_FLAG)
 
 down:
-	docker-compose -f $(COMPOSE_FILE) down
+	docker compose -f $(COMPOSE_FILE) down
