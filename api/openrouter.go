@@ -143,6 +143,10 @@ func HandleChatGPTStreamResponse(bot *tgbotapi.BotAPI, client *openai.Client, me
 }
 
 func sendChunkedMessage(bot *tgbotapi.BotAPI, chatID int64, text string, messageID int) {
+	if text == "" {
+		log.Printf("Warning: sendChunkedMessage called with empty text")
+		return
+	}
 	const chunkSize = 4096
 	if len(text) <= chunkSize {
 		editMsg := tgbotapi.NewEditMessageText(chatID, messageID, text)
@@ -187,7 +191,11 @@ func sendChunkedMessage(bot *tgbotapi.BotAPI, chatID int64, text string, message
 			to = from + lastNewline
 		}
 
-		msg := tgbotapi.NewMessage(chatID, string(runes[from:to]))
+		chunk := string(runes[from:to])
+		if chunk == "" {
+			continue
+		}
+		msg := tgbotapi.NewMessage(chatID, chunk)
 		msg.ParseMode = tgbotapi.ModeMarkdown
 		_, err := bot.Send(msg)
 		if err != nil {
