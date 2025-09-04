@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -57,13 +56,8 @@ func GetFreeModels() (string, error) {
 
 	var result strings.Builder
 	for _, model := range apiResponse.Data {
-		// Filter by price
 		if model.Pricing.Prompt == "0" {
-			// escapedDesc := strings.ReplaceAll(model.Description, "*", "\\*")
-			// escapedDesc = strings.ReplaceAll(escapedDesc, "_", "\\_")
-			// result.WriteString(fmt.Sprintf("%s - %s\n", model.ID, escapedDesc))
-			result.WriteString(fmt.Sprintf("➡ `%s`\n", model.ID))
-			// result.WriteString(fmt.Sprintf("➡ `/set_model %s`\n", model.ID))
+			result.WriteString(fmt.Sprintf("➡ &grave;%s&grave;\n", model.ID))
 		}
 	}
 	return result.String(), nil
@@ -86,7 +80,6 @@ func HandleChatGPTStreamResponse(bot *tgbotapi.BotAPI, client *openai.Client, me
 
 	conf := manager.GetConfig()
 
-	// Send a loading message with animation points
 	loadMessage := lang.Translate("loadText", conf.Lang)
 	errorMessage := lang.Translate("errorText", conf.Lang)
 
@@ -97,29 +90,6 @@ func HandleChatGPTStreamResponse(bot *tgbotapi.BotAPI, client *openai.Client, me
 		return ""
 	}
 	lastMessageID := sentMsg.MessageID
-
-	// Goroutine for animation points
-	stopAnimation := make(chan bool)
-	go func() {
-		dots := []string{".", "..", "..."}
-		i := 0
-		for {
-			select {
-			case <-stopAnimation:
-				return
-			default:
-				time.Sleep(500 * time.Millisecond)
-				text := fmt.Sprintf("%s%s", loadMessage, dots[i])
-				editMsg := tgbotapi.NewEditMessageText(message.Chat.ID, lastMessageID, text)
-				_, err := bot.Send(editMsg)
-				if err != nil {
-					log.Printf("Failed to update processing message: %v", err)
-				}
-
-				i = (i + 1) % len(dots)
-			}
-		}
-	}()
 
 	messages := []openai.ChatCompletionMessage{
 		{
@@ -152,76 +122,86 @@ func HandleChatGPTStreamResponse(bot *tgbotapi.BotAPI, client *openai.Client, me
 		TopP:             float32(config.Model.TopP),
 		MaxTokens:        config.MaxTokens,
 		Messages:         messages,
-		Stream:           true,
 	}
 
-	// Error handling and sending a response message
-	stream, err := client.CreateChatCompletionStream(ctx, req)
+	resp, err := client.CreateChatCompletion(ctx, req)
 	if err != nil {
-		fmt.Printf("ChatCompletionStream error: %v\n", err)
-		stopAnimation <- true
+		fmt.Printf("ChatCompletion error: %v\n", err)
 		bot.Send(tgbotapi.NewEditMessageText(message.Chat.ID, lastMessageID, errorMessage))
 		return ""
 	}
-	defer stream.Close()
-	user.CurrentStream = stream
 
-	// Stop the animation when we start receiving a response
-	stopAnimation <- true
-	var messageText string
-	responseID := ""
-	log.Printf("User: " + user.UserName + " Stream response. ")
+	messageText := resp.Choices[0].Message.Content
+	responseID := resp.ID
 
-	for {
-		response, err := stream.Recv()
-		if responseID == "" {
-			responseID = response.ID
-		}
-		if errors.Is(err, io.EOF) {
-			fmt.Println("\nStream finished, response ID:", responseID)
-			user.AddMessage(openai.ChatMessageRoleUser, message.Text)
-			user.AddMessage(openai.ChatMessageRoleAssistant, messageText)
-			editMsg := tgbotapi.NewEditMessageText(message.Chat.ID, lastMessageID, messageText)
-			editMsg.ParseMode = tgbotapi.ModeMarkdown
-			_, err := bot.Send(editMsg)
-			if err != nil {
-				log.Printf("Failed to edit message: %v", err)
-			}
-			user.CurrentStream = nil
-			return responseID
-		}
+	user.AddMessage(openai.ChatMessageRoleUser, message.Text)
+	user.AddMessage(openai.ChatMessageRoleAssistant, messageText)
 
+	sendChunkedMessage(bot, message.Chat.ID, messageText, lastMessageID)
+
+	return responseID
+}
+
+func sendChunkedMessage(bot *tgbotapi.BotAPI, chatID int64, text string, messageID int) {
+	const chunkSize = 4096
+	if len(text) <= chunkSize {
+		editMsg := tgbotapi.NewEditMessageText(chatID, messageID, text)
+		editMsg.ParseMode = tgbotapi.ModeMarkdown
+		_, err := bot.Send(editMsg)
 		if err != nil {
-			fmt.Printf("\nStream error: %v\n", err)
-			msg := tgbotapi.NewMessage(message.Chat.ID, err.Error())
-			msg.ParseMode = tgbotapi.ModeMarkdown
-			bot.Send(msg)
-			user.CurrentStream = nil
-			return responseID
+			log.Printf("Failed to edit message: %v", err)
+		}
+		return
+	}
+
+	runes := []rune(text)
+	var from, to int
+
+	// First chunk
+	to = chunkSize
+	if to > len(runes) {
+		to = len(runes)
+	}
+	lastNewline := strings.LastIndex(string(runes[from:to]), "\n")
+	if lastNewline != -1 {
+		to = from + lastNewline
+	}
+
+	editMsg := tgbotapi.NewEditMessageText(chatID, messageID, string(runes[from:to]))
+	editMsg.ParseMode = tgbotapi.ModeMarkdown
+	_, err := bot.Send(editMsg)
+	if err != nil {
+		log.Printf("Failed to send initial chunk: %v", err)
+		return
+	}
+	from = to
+
+	// Subsequent chunks
+	for from < len(runes) {
+		to = from + chunkSize
+		if to > len(runes) {
+			to = len(runes)
+		}
+		lastNewline := strings.LastIndex(string(runes[from:to]), "\n")
+		if lastNewline != -1 && from+lastNewline < len(runes) {
+			to = from + lastNewline
 		}
 
-		if len(response.Choices) > 0 {
-			messageText += response.Choices[0].Delta.Content
-			editMsg := tgbotapi.NewEditMessageText(message.Chat.ID, lastMessageID, messageText)
-			editMsg.ParseMode = tgbotapi.ModeMarkdown
-			_, err := bot.Send(editMsg)
-			if err != nil {
-				continue
-			}
-		} else {
-			log.Printf("Received empty response choices")
-			continue
+		msg := tgbotapi.NewMessage(chatID, string(runes[from:to]))
+		msg.ParseMode = tgbotapi.ModeMarkdown
+		_, err := bot.Send(msg)
+		if err != nil {
+			log.Printf("Failed to send chunk: %v", err)
 		}
+		from = to
 	}
 }
 
 func addVisionMessage(bot *tgbotapi.BotAPI, message *tgbotapi.Message, config *config.Config) openai.ChatCompletionMessage {
 	if len(message.Photo) > 0 {
-		// Assuming you want the largest photo size
 		photoSize := message.Photo[len(message.Photo)-1]
 		fileID := photoSize.FileID
 
-		// Download the photo
 		file, err := bot.GetFile(tgbotapi.FileConfig{FileID: fileID})
 		if err != nil {
 			log.Printf("Error getting file: %v", err)
@@ -231,7 +211,6 @@ func addVisionMessage(bot *tgbotapi.BotAPI, message *tgbotapi.Message, config *c
 			}
 		}
 
-		// Access the file URL
 		fileURL := file.Link(bot.Token)
 		fmt.Println("Photo URL:", fileURL)
 		if message.Text == "" {

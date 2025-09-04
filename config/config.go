@@ -59,7 +59,7 @@ func Load() (*Config, error) {
 	}
 
 	// Default params
-	viper.SetDefault("MAX_TOKENS", 2000)
+	viper.SetDefault("MAX_TOKENS", 5000)
 	viper.SetDefault("TEMPERATURE", 0.7)
 	viper.SetDefault("TOP_P", 0.7)
 	viper.SetDefault("BASE_URL", "https://openrouter.ai/api/v1") // or https://api.openai.com/v1
